@@ -1,21 +1,66 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import Recipient
 from django.urls import reverse
 from django import forms
+from django.core.mail import send_mail
+from django.utils import timezone
+from django.db.models import Count
+from django.core.exceptions import ValidationError
 
+from .models import Recipient, Message, Mailing, Attempt
+
+
+# ============================
+# Forms
+# ============================
 
 class RecipientForm(forms.ModelForm):
     class Meta:
         model = Recipient
         fields = ['email', 'full_name', 'comment']
 
+
+class MessageForm(forms.ModelForm):
+    class Meta:
+        model = Message
+        fields = ['subject', 'body']
+
+
+class MailingForm(forms.ModelForm):
+    class Meta:
+        model = Mailing
+        fields = ['start_time', 'end_time', 'message', 'recipients']
+        widgets = {
+            'start_time': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+            'end_time': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        start = cleaned_data.get('start_time')
+        end = cleaned_data.get('end_time')
+
+        if start and start < timezone.now():
+            raise ValidationError("Время начала не может быть в прошлом.")
+
+        if start and end and start >= end:
+            raise ValidationError("Время начала должно быть раньше времени окончания.")
+
+        return cleaned_data
+
+
+# ============================
+# Recipient Views
+# ============================
+
 def recipient_list(request):
     recipients = Recipient.objects.all()
     return render(request, 'mailing/recipient_list.html', {'recipients': recipients})
 
+
 def recipient_detail(request, pk):
     recipient = get_object_or_404(Recipient, pk=pk)
     return render(request, 'mailing/recipient_detail.html', {'recipient': recipient})
+
 
 def recipient_create(request):
     if request.method == 'POST':
@@ -42,6 +87,7 @@ def recipient_update(request, pk):
 
     return render(request, 'mailing/recipient_form.html', {'form': form})
 
+
 def recipient_delete(request, pk):
     recipient = get_object_or_404(Recipient, pk=pk)
 
@@ -52,14 +98,9 @@ def recipient_delete(request, pk):
     return render(request, 'mailing/recipient_confirm_delete.html', {'recipient': recipient})
 
 
-from .models import Message
-from django import forms
-
-
-class MessageForm(forms.ModelForm):
-    class Meta:
-        model = Message
-        fields = ['subject', 'body']
+# ============================
+# Message Views
+# ============================
 
 
 def message_list(request):
@@ -103,37 +144,9 @@ def message_delete(request, pk):
     return render(request, 'mailing/message_confirm_delete.html', {'message': message})
 
 
-# -----------------------------
-# CRUD для рассылок
-# -----------------------------
-
-from .models import Mailing
-from django import forms
-from django.utils import timezone
-from django.core.exceptions import ValidationError
-
-
-class MailingForm(forms.ModelForm):
-    class Meta:
-        model = Mailing
-        fields = ['start_time', 'end_time', 'message', 'recipients']
-        widgets = {
-            'start_time': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
-            'end_time': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
-        }
-
-    def clean(self):
-        cleaned_data = super().clean()
-        start = cleaned_data.get('start_time')
-        end = cleaned_data.get('end_time')
-
-        if start and start < timezone.now():
-            raise ValidationError("Время начала не может быть в прошлом.")
-
-        if start and end and start >= end:
-            raise ValidationError("Время начала должно быть раньше времени окончания.")
-
-        return cleaned_data
+# ============================
+# Mailing Views
+# ============================
 
 def mailing_list(request):
     mailings = Mailing.objects.all()
@@ -174,10 +187,6 @@ def mailing_delete(request, pk):
         return redirect('mailing_list')
 
     return render(request, 'mailing/mailing_confirm_delete.html', {'mailing': mailing})
-
-
-from django.core.mail import send_mail
-from .models import Attempt
 
 
 def mailing_run(request, pk):
@@ -227,9 +236,9 @@ def mailing_run(request, pk):
     })
 
 
-from django.db.models import Count
-from .models import Mailing, Recipient
-
+# ============================
+# Home View
+# ============================
 
 def home(request):
     total_mailings = Mailing.objects.count()
