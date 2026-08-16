@@ -18,7 +18,9 @@ urlpatterns = [
     path('mailings/<int:pk>/delete/', views.mailing_delete, name='mailing_delete'),
     path('mailings/<int:pk>/run/', views.mailing_run, name='mailing_run'),
     path('', views.home, name='home'),
-
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
+    path('register/', views.register, name='register'), 
 
 
 

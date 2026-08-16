@@ -1,0 +1,129 @@
+{% extends 'mailing/base.html' %}
+
+{% block title %}Регистрация - Mailing Service{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="card shadow-lg">
+            <div class="card-body p-5">
+                <h2 class="card-title text-center mb-4">Регистрация</h2>
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        <h4 class="alert-heading">Ошибка!</h4>
+                        {% for error in form.non_field_errors %}
+                            <p class="mb-0">{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="id_username" class="form-label">Имя пользователя</label>
+                        <input type="text" class="form-control" name="username" id="id_username" required>
+                        {% if form.username.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.username.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_email" class="form-label">Email</label>
+                        <input type="email" class="form-control" name="email" id="id_email" required>
+                        {% if form.email.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.email.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_password1" class="form-label">Пароль</label>
+                        <input type="password" class="form-control" name="password1" id="id_password1" required>
+                        {% if form.password1.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.password1.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_password2" class="form-label">Подтверждение пароля</label>
+                        <input type="password" class="form-control" name="password2" id="id_password2" required>
+                        {% if form.password2.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.password2.errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 mb-3">Зарегистрироваться</button>
+                </form>
+
+                <hr>
+
+                <p class="text-center">
+                    Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 10px;
+    }
+
+    .card-title {
+        color: #333;
+        font-weight: 600;
+    }
+
+    .form-control {
+        border-radius: 5px;
+        border: 1px solid #ddd;
+    }
+
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        outline: none;
+    }
+
+    .btn-primary {
+        background-color: #667eea;
+        border-color: #667eea;
+        border-radius: 5px;
+        font-weight: 500;
+    }
+
+    .btn-primary:hover {
+        background-color: #5568d3;
+        border-color: #5568d3;
+    }
+
+    a {
+        color: #667eea;
+        text-decoration: none;
+    }
+
+    a:hover {
+        color: #5568d3;
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}

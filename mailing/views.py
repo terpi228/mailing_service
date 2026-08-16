@@ -5,6 +5,10 @@ from django.core.mail import send_mail
 from django.utils import timezone
 from django.db.models import Count
 from django.core.exceptions import ValidationError
+from django.contrib.auth.models import User
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import login
+from django.contrib.auth.decorators import login_required
 
 from .models import Recipient, Message, Mailing, Attempt
 
@@ -46,6 +50,41 @@ class MailingForm(forms.ModelForm):
             raise ValidationError("Время начала должно быть раньше времени окончания.")
 
         return cleaned_data
+
+
+class RegisterForm(UserCreationForm):
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email'})
+    )
+    username = forms.CharField(
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Имя пользователя'})
+    )
+    password1 = forms.CharField(
+        label='Пароль',
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Пароль'})
+    )
+    password2 = forms.CharField(
+        label='Подтверждение пароля',
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Подтверждение пароля'})
+    )
+
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'password1', 'password2')
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if User.objects.filter(email=email).exists():
+            raise forms.ValidationError("Пользователь с таким email уже существует.")
+        return email
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.email = self.cleaned_data['email']
+        if commit:
+            user.save()
+        return user
 
 
 # ============================
@@ -147,7 +186,7 @@ def message_delete(request, pk):
 # ============================
 # Mailing Views
 # ============================
-
+@login_required
 def mailing_list(request):
     mailings = Mailing.objects.all()
     return render(request, 'mailing/mailing_list.html', {'mailings': mailings})
@@ -257,3 +296,37 @@ def home(request):
     }
 
     return render(request, 'mailing/home.html', context)
+
+
+# ============================
+# Authentication Views
+# ============================
+
+def register(request):
+    if request.method == 'POST':
+        form = RegisterForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect('home')
+    else:
+        form = RegisterForm()
+    return render(request, 'mailing/register.html', {'form': form})
+
+
+def login_view(request):
+    from django.contrib.auth import authenticate, login as auth_login
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            auth_login(request, user)
+            return redirect('home')
+    return render(request, 'mailing/login.html')
+
+
+def logout_view(request):
+    from django.contrib.auth import logout
+    logout(request)
+    return redirect('home')

@@ -1,0 +1,86 @@
+{% extends 'mailing/base.html' %}
+
+{% block title %}Вход - Mailing Service{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5">
+        <div class="card shadow-lg">
+            <div class="card-body p-5">
+                <h2 class="card-title text-center mb-4">Вход в систему</h2>
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        {% for error in form.non_field_errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="id_username" class="form-label">Имя пользователя</label>
+                        <input type="text" class="form-control" name="username" id="id_username" required>
+                        {% if form.username.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.username.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_password" class="form-label">Пароль</label>
+                        <input type="password" class="form-control" name="password" id="id_password" required>
+                        {% if form.password.errors %}
+                            <div class="text-danger small mt-1">
+                                {% for error in form.password.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 mb-3">Войти</button>
+                </form>
+
+                <hr>
+                <p class="text-center">
+                    Нет аккаунта? <a href="{% url 'register' %}">Зарегистрироваться</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        border: none;
+        border-radius: 10px;
+    }
+
+    .form-control {
+        border-radius: 5px;
+        border: 1px solid #ddd;
+    }
+
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        outline: none;
+    }
+
+    .btn-primary {
+        background-color: #667eea;
+        border-color: #667eea;
+    }
+
+    .btn-primary:hover {
+        background-color: #5568d3;
+        border-color: #5568d3;
+    }
+</style>
+{% endblock %}
