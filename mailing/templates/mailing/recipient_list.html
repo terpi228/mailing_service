@@ -1,0 +1,33 @@
+{% extends 'mailing/base.html' %}
+
+{% block title %}Список клиентов{% endblock %}
+
+{% block content %}
+<h1>Клиенты</h1>
+
+<a href="{% url 'recipient_create' %}" class="btn btn-success mb-3">Добавить клиента</a>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Email</th>
+            <th>ФИО</th>
+            <th>Комментарий</th>
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in recipients %}
+        <tr>
+            <td>{{ r.email }}</td>
+            <td>{{ r.full_name }}</td>
+            <td>{{ r.comment }}</td>
+            <td>
+                <a href="{% url 'recipient_update' r.id %}" class="btn btn-warning btn-sm">Редактировать</a>
+                <a href="{% url 'recipient_delete' r.id %}" class="btn btn-danger btn-sm">Удалить</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends 'mailing/base.html' %}
+
+{% block content %}
+<h1>Рассылка запущена!</h1>
+
+<p>Рассылка №{{ mailing.id }} успешно обработана.</p>
+
+<h3>Попытки отправки:</h3>
+
+<ul>
+    {% for a in attempts %}
+    <li>{{ a.status }} — {{ a.server_response }}</li>
+    {% endfor %}
+</ul>
+
+<a href="{% url 'mailing_list' %}" class="btn btn-primary">Назад</a>
+{% endblock %}

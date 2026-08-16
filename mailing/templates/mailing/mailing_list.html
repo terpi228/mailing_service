@@ -1,0 +1,46 @@
+{% extends 'mailing/base.html' %}
+
+{% block title %}Рассылки{% endblock %}
+
+{% block content %}
+<h1>Рассылки</h1>
+
+<a href="{% url 'mailing_create' %}" class="btn btn-success mb-3">Создать рассылку</a>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Начало</th>
+            <th>Окончание</th>
+            <th>Статус</th>
+            <th>Сообщение</th>
+            <th>Получатели</th>
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for m in mailings %}
+        <tr>
+            <td>{{ m.id }}</td>
+            <td>{{ m.start_time }}</td>
+            <td>{{ m.end_time }}</td>
+            <td>{{ m.status }}</td>
+            <td>{{ m.message.subject }}</td>
+            <td>
+                {% for r in m.recipients.all %}
+                {{ r.email }}<br>
+                {% endfor %}
+            </td>
+
+            <td>
+                <a href="{% url 'mailing_update' m.id %}" class="btn btn-warning btn-sm">Редактировать</a>
+                <a href="{% url 'mailing_delete' m.id %}" class="btn btn-danger btn-sm">Удалить</a>
+                <a href="{% url 'mailing_run' m.id %}" class="btn btn-info btn-sm">Запустить</a>
+
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
