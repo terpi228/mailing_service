@@ -63,10 +63,13 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'mailing.context_processors.is_manager_context',
+                
             ],
         },
     },
 ]
+
 
 WSGI_APPLICATION = 'mailing_service.wsgi.application'
 
@@ -122,12 +125,32 @@ STATIC_URL = 'static/'
 # Email
 # https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
 
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
 
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'mailing-cache'
+    }
+}
+
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+
+CELERY_BEAT_SCHEDULE = {}
+
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'run-mailings-every-minute': {
+        'task': 'mailing.tasks.check_mailings',
+        'schedule': crontab(minute='*/1'),
+    },
+}
+
+
+EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
+EMAIL_FILE_PATH = BASE_DIR / 'sent_emails'   # папка будет создана

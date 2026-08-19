@@ -12,48 +12,28 @@
 
 <body class="container mt-4">
 
-    <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4 rounded">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{% url 'home' %}">Mailing Service</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'home' %}">Главная</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'recipient_list' %}">Клиенты</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'message_list' %}">Сообщения</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'mailing_list' %}">Рассылки</a>
-                    </li>
-                </ul>
-                <ul class="navbar-nav">
-                    {% if user.is_authenticated %}
-                    <li class="nav-item">
-                        <span class="navbar-text me-3">{{ user.username }}</span>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link btn btn-outline-danger" href="{% url 'logout' %}">Выход</a>
-                    </li>
-                    {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link btn btn-outline-primary me-2" href="{% url 'login' %}">Вход</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link btn btn-primary" href="{% url 'register' %}">Регистрация</a>
-                    </li>
-                    {% endif %}
-                </ul>
-            </div>
-        </div>
-    </nav>
+    <nav class="mb-4">
+        <a href="{% url 'home' %}" class="btn btn-dark">Главная</a>
 
+        {% if user.is_authenticated %}
+
+        {% if is_manager %}
+        <a href="{% url 'recipient_list' %}" class="btn btn-dark">Клиенты</a>
+        <a href="{% url 'message_list' %}" class="btn btn-dark">Сообщения</a>
+        <a href="{% url 'mailing_list' %}" class="btn btn-dark">Рассылки</a>
+        <a href="{% url 'stats' %}" class="btn btn-dark">Статистика</a>
+        {% endif %}
+
+
+
+        <a href="{% url 'logout' %}" class="btn btn-outline-danger me-3">Выход</a>
+
+        {% else %}
+        <a href="{% url 'login' %}" class="btn btn-primary">Вход</a>
+        <a href="{% url 'register' %}" class="btn btn-success">Регистрация</a>
+        {% endif %}
+
+    </nav>
 
     {% block content %}
     {% endblock %}

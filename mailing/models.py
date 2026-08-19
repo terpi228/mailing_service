@@ -18,6 +18,13 @@ class Message(models.Model):
         return self.subject
 
 class Mailing(models.Model):
+    STATUS_CHOICES = [
+        ('created', 'Создана'),
+        ('started', 'Запущена'),
+        ('completed', 'Завершена'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='created')
+    
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
     message = models.ForeignKey(Message, on_delete=models.CASCADE)

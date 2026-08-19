@@ -4,13 +4,28 @@ from django import forms
 from django.core.mail import send_mail
 from django.utils import timezone
 from django.db.models import Count
-from django.core.exceptions import ValidationError
-from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError, PermissionDenied
+from django.contrib.auth.models import User, Group
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth import login, authenticate, logout
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.views.decorators.cache import cache_page
+from mailing.utils import get_active_mailings_count, get_attempt_stats
+
+
 
 from .models import Recipient, Message, Mailing, Attempt
+
+
+# ============================
+# Utilities
+# ============================
+
+def is_manager(user):
+    """Проверяет, является ли пользователь менеджером."""
+    if user.is_superuser or user.groups.filter(name='managers').exists():
+        return True
+    raise PermissionDenied
 
 
 # ============================
@@ -38,18 +53,28 @@ class MailingForm(forms.ModelForm):
             'end_time': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
         }
 
-    def clean(self):
-        cleaned_data = super().clean()
-        start = cleaned_data.get('start_time')
-        end = cleaned_data.get('end_time')
+    # def clean_start_time(self):
+    #     start = self.cleaned_data.get('start_time')
+    #     if start and timezone.is_naive(start):
+    #         start = timezone.make_aware(start, timezone.get_current_timezone())
+    #     return start
 
-        if start and start < timezone.now():
-            raise ValidationError("Время начала не может быть в прошлом.")
+    # def clean_end_time(self):
+    #     end = self.cleaned_data.get('end_time')
+    #     if end and timezone.is_naive(end):
+    #         end = timezone.make_aware(end, timezone.get_current_timezone())
+    #     return end
 
-        if start and end and start >= end:
-            raise ValidationError("Время начала должно быть раньше времени окончания.")
+    # def clean(self):
+    #     cleaned_data = super().clean()
+    #     start = cleaned_data.get('start_time')
+    #     end = cleaned_data.get('end_time')
 
-        return cleaned_data
+        # if start and start < timezone.now():
+        #     raise ValidationError("Время начала не может быть в прошлом.")
+        # if start and end and start >= end:
+        #     raise ValidationError("Время начала должно быть раньше времени окончания.")
+        # return cleaned_data
 
 
 class RegisterForm(UserCreationForm):
@@ -87,20 +112,36 @@ class RegisterForm(UserCreationForm):
         return user
 
 
+class LoginForm(forms.Form):
+    """Форма для входа пользователя."""
+    username = forms.CharField(
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Имя пользователя'})
+    )
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Пароль'})
+    )
+
+
 # ============================
 # Recipient Views
 # ============================
 
+@user_passes_test(is_manager)
+@login_required
 def recipient_list(request):
     recipients = Recipient.objects.all()
     return render(request, 'mailing/recipient_list.html', {'recipients': recipients})
 
 
+@user_passes_test(is_manager)
+@login_required
 def recipient_detail(request, pk):
     recipient = get_object_or_404(Recipient, pk=pk)
     return render(request, 'mailing/recipient_detail.html', {'recipient': recipient})
 
 
+@user_passes_test(is_manager)
+@login_required
 def recipient_create(request):
     if request.method == 'POST':
         form = RecipientForm(request.POST)
@@ -113,6 +154,8 @@ def recipient_create(request):
     return render(request, 'mailing/recipient_form.html', {'form': form})
 
 
+@user_passes_test(is_manager)
+@login_required
 def recipient_update(request, pk):
     recipient = get_object_or_404(Recipient, pk=pk)
 
@@ -127,6 +170,8 @@ def recipient_update(request, pk):
     return render(request, 'mailing/recipient_form.html', {'form': form})
 
 
+@user_passes_test(is_manager)
+@login_required
 def recipient_delete(request, pk):
     recipient = get_object_or_404(Recipient, pk=pk)
 
@@ -142,11 +187,15 @@ def recipient_delete(request, pk):
 # ============================
 
 
+@user_passes_test(is_manager)
+@login_required
 def message_list(request):
     messages = Message.objects.all()
     return render(request, 'mailing/message_list.html', {'messages': messages})
 
 
+@user_passes_test(is_manager)
+@login_required
 def message_create(request):
     if request.method == 'POST':
         form = MessageForm(request.POST)
@@ -159,6 +208,8 @@ def message_create(request):
     return render(request, 'mailing/message_form.html', {'form': form})
 
 
+@user_passes_test(is_manager)
+@login_required
 def message_update(request, pk):
     message = get_object_or_404(Message, pk=pk)
 
@@ -173,6 +224,8 @@ def message_update(request, pk):
     return render(request, 'mailing/message_form.html', {'form': form})
 
 
+@user_passes_test(is_manager)
+@login_required
 def message_delete(request, pk):
     message = get_object_or_404(Message, pk=pk)
 
@@ -186,12 +239,16 @@ def message_delete(request, pk):
 # ============================
 # Mailing Views
 # ============================
+@cache_page(30)
+@user_passes_test(is_manager)
 @login_required
 def mailing_list(request):
     mailings = Mailing.objects.all()
     return render(request, 'mailing/mailing_list.html', {'mailings': mailings})
 
 
+@user_passes_test(is_manager)
+@login_required
 def mailing_create(request):
     if request.method == 'POST':
         form = MailingForm(request.POST)
@@ -204,6 +261,8 @@ def mailing_create(request):
     return render(request, 'mailing/mailing_form.html', {'form': form})
 
 
+@user_passes_test(is_manager)
+@login_required
 def mailing_update(request, pk):
     mailing = get_object_or_404(Mailing, pk=pk)
 
@@ -218,6 +277,8 @@ def mailing_update(request, pk):
     return render(request, 'mailing/mailing_form.html', {'form': form})
 
 
+@user_passes_test(is_manager)
+@login_required
 def mailing_delete(request, pk):
     mailing = get_object_or_404(Mailing, pk=pk)
 
@@ -228,16 +289,29 @@ def mailing_delete(request, pk):
     return render(request, 'mailing/mailing_confirm_delete.html', {'mailing': mailing})
 
 
+@user_passes_test(is_manager)
+@login_required
 def mailing_run(request, pk):
+    mailing = get_object_or_404(Mailing, pk=pk)
+    now = timezone.now()
+
+    # Принудительно делаем время осознанным, если оно наивное
+    start = mailing.start_time
+    end = mailing.end_time
+
+    if timezone.is_naive(start):
+        start = timezone.make_aware(start, timezone.get_current_timezone())
+    if timezone.is_naive(end):
+        end = timezone.make_aware(end, timezone.get_current_timezone())
+
+    # Теперь сравниваем корректно
+    if not (start <= now <= end):
+        return render(request, 'mailing/mailing_error.html', {
+            'message': f'Отправка запрещена: текущее время ({now}) вне разрешённого диапазона ({start} – {end}).'
+        })
     mailing = get_object_or_404(Mailing, pk=pk)
 
     now = timezone.now()
-
-    # Проверка времени
-    if not (mailing.start_time <= now <= mailing.end_time):
-        return render(request, 'mailing/mailing_error.html', {
-            'message': 'Отправка запрещена: текущее время вне разрешённого диапазона.'
-        })
 
     recipients = mailing.recipients.all()
 
@@ -278,16 +352,14 @@ def mailing_run(request, pk):
 # ============================
 # Home View
 # ============================
+from mailing.utils import get_active_mailings_count
+from django.utils import timezone
 
+@cache_page(60)
 def home(request):
     total_mailings = Mailing.objects.count()
-
-    active_mailings = Mailing.objects.filter(
-        start_time__lte=timezone.now(),
-        end_time__gte=timezone.now()
-    ).count()
-
     total_recipients = Recipient.objects.count()
+    active_mailings = get_active_mailings_count()
 
     context = {
         'total_mailings': total_mailings,
@@ -298,15 +370,22 @@ def home(request):
     return render(request, 'mailing/home.html', context)
 
 
+
+
+
 # ============================
 # Authentication Views
 # ============================
 
 def register(request):
+    """Регистрация нового пользователя и добавление в группу 'users'."""
     if request.method == 'POST':
         form = RegisterForm(request.POST)
         if form.is_valid():
             user = form.save()
+            # Добавляем нового пользователя в группу "users"
+            users_group, created = Group.objects.get_or_create(name='users')
+            users_group.user_set.add(user)
             login(request, user)
             return redirect('home')
     else:
@@ -315,18 +394,69 @@ def register(request):
 
 
 def login_view(request):
-    from django.contrib.auth import authenticate, login as auth_login
+    """Страница входа пользователя."""
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        user = authenticate(request, username=username, password=password)
-        if user is not None:
-            auth_login(request, user)
-            return redirect('home')
-    return render(request, 'mailing/login.html')
+        form = LoginForm(request.POST)
+        if form.is_valid():
+            username = form.cleaned_data.get('username')
+            password = form.cleaned_data.get('password')
+            user = authenticate(request, username=username, password=password)
+            if user is not None:
+                login(request, user)
+                return redirect('home')
+            else:
+                form.add_error(None, "Неверное имя пользователя или пароль.")
+    else:
+        form = LoginForm()
+    return render(request, 'mailing/login.html', {'form': form})
 
 
 def logout_view(request):
-    from django.contrib.auth import logout
+    """Выход пользователя."""
     logout(request)
     return redirect('home')
+
+
+from django.db.models import Count, Q
+from django.contrib.auth.decorators import login_required, user_passes_test
+
+def is_manager(user):
+    return user.is_superuser or user.groups.filter(name='managers').exists()
+
+
+@cache_page(120)
+@user_passes_test(is_manager)
+def stats(request):
+    total_mailings = Mailing.objects.count()
+
+    active_mailings = Mailing.objects.filter(
+        start_time__lte=timezone.now(),
+        end_time__gte=timezone.now()
+    ).count()
+
+    finished_mailings = Mailing.objects.filter(
+        end_time__lt=timezone.now()
+    ).count()
+
+    attempts_success = Attempt.objects.filter(status='Успешно').count()
+    attempts_failed = Attempt.objects.filter(status='Не успешно').count()
+
+    mailing_attempts = Mailing.objects.annotate(
+        success_count=Count('attempt', filter=Q(attempt__status='Успешно')),
+        fail_count=Count('attempt', filter=Q(attempt__status='Не успешно'))
+    )
+
+    context = {
+        'total_mailings': total_mailings,
+        'active_mailings': active_mailings,
+        'finished_mailings': finished_mailings,
+        'attempts_success': attempts_success,
+        'attempts_failed': attempts_failed,
+        'mailing_attempts': mailing_attempts,
+    }
+
+    return render(request, 'mailing/stats.html', context)
+
+
+from django.utils import timezone
+
