@@ -1,9 +1,12 @@
 from django.utils import timezone
 from django.db import models
+from django.contrib.auth.models import User
 
 # Create your models here.
 class Recipient(models.Model):
-    email = models.EmailField(unique=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True,
+                              related_name='recipients')
+    email = models.EmailField()
     full_name = models.CharField(max_length=255)
     comment = models.TextField(blank=True, null=True)
 
@@ -11,6 +14,8 @@ class Recipient(models.Model):
         return self.full_name
 
 class Message(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True,
+                              related_name='messages')
     subject = models.CharField(max_length=255)
     body = models.TextField()
 
@@ -18,6 +23,8 @@ class Message(models.Model):
         return self.subject
 
 class Mailing(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True,
+                              related_name='mailings')
     STATUS_CHOICES = [
         ('created', 'Создана'),
         ('started', 'Запущена'),

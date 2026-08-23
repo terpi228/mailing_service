@@ -19,17 +19,15 @@ def send_mailing_task(mailing_id):
 
             Attempt.objects.create(
                 mailing=mailing,
-                recipient=recipient,
                 status='Успешно',
-                timestamp=timezone.now()
+                server_response='OK'
             )
 
         except Exception:
             Attempt.objects.create(
                 mailing=mailing,
-                recipient=recipient,
                 status='Не успешно',
-                timestamp=timezone.now()
+                server_response='Ошибка отправки'
             )
 
 @shared_task

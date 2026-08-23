@@ -22,10 +22,19 @@ from .models import Recipient, Message, Mailing, Attempt
 # ============================
 
 def is_manager(user):
-    """Проверяет, является ли пользователь менеджером."""
-    if user.is_superuser or user.groups.filter(name='managers').exists():
-        return True
-    raise PermissionDenied
+    return user.is_authenticated and (
+        user.is_superuser or user.groups.filter(name='managers').exists()
+    )
+
+
+def visible_objects(model, user):
+    if is_manager(user):
+        return model.objects.all()
+    return model.objects.filter(owner=user)
+
+
+def visible_object(model, user, pk):
+    return get_object_or_404(visible_objects(model, user), pk=pk)
 
 
 # ============================
@@ -45,6 +54,11 @@ class MessageForm(forms.ModelForm):
 
 
 class MailingForm(forms.ModelForm):
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['message'].queryset = visible_objects(Message, user)
+        self.fields['recipients'].queryset = visible_objects(Recipient, user)
+
     class Meta:
         model = Mailing
         fields = ['start_time', 'end_time', 'message', 'recipients']
@@ -126,27 +140,26 @@ class LoginForm(forms.Form):
 # Recipient Views
 # ============================
 
-@user_passes_test(is_manager)
 @login_required
 def recipient_list(request):
-    recipients = Recipient.objects.all()
+    recipients = visible_objects(Recipient, request.user)
     return render(request, 'mailing/recipient_list.html', {'recipients': recipients})
 
 
-@user_passes_test(is_manager)
 @login_required
 def recipient_detail(request, pk):
-    recipient = get_object_or_404(Recipient, pk=pk)
+    recipient = visible_object(Recipient, request.user, pk)
     return render(request, 'mailing/recipient_detail.html', {'recipient': recipient})
 
 
-@user_passes_test(is_manager)
 @login_required
 def recipient_create(request):
     if request.method == 'POST':
         form = RecipientForm(request.POST)
         if form.is_valid():
-            form.save()
+            recipient = form.save(commit=False)
+            recipient.owner = request.user
+            recipient.save()
             return redirect('recipient_list')
     else:
         form = RecipientForm()
@@ -154,10 +167,9 @@ def recipient_create(request):
     return render(request, 'mailing/recipient_form.html', {'form': form})
 
 
-@user_passes_test(is_manager)
 @login_required
 def recipient_update(request, pk):
-    recipient = get_object_or_404(Recipient, pk=pk)
+    recipient = visible_object(Recipient, request.user, pk)
 
     if request.method == 'POST':
         form = RecipientForm(request.POST, instance=recipient)
@@ -170,10 +182,9 @@ def recipient_update(request, pk):
     return render(request, 'mailing/recipient_form.html', {'form': form})
 
 
-@user_passes_test(is_manager)
 @login_required
 def recipient_delete(request, pk):
-    recipient = get_object_or_404(Recipient, pk=pk)
+    recipient = visible_object(Recipient, request.user, pk)
 
     if request.method == 'POST':
         recipient.delete()
@@ -187,20 +198,20 @@ def recipient_delete(request, pk):
 # ============================
 
 
-@user_passes_test(is_manager)
 @login_required
 def message_list(request):
-    messages = Message.objects.all()
+    messages = visible_objects(Message, request.user)
     return render(request, 'mailing/message_list.html', {'messages': messages})
 
 
-@user_passes_test(is_manager)
 @login_required
 def message_create(request):
     if request.method == 'POST':
         form = MessageForm(request.POST)
         if form.is_valid():
-            form.save()
+            message = form.save(commit=False)
+            message.owner = request.user
+            message.save()
             return redirect('message_list')
     else:
         form = MessageForm()
@@ -208,10 +219,9 @@ def message_create(request):
     return render(request, 'mailing/message_form.html', {'form': form})
 
 
-@user_passes_test(is_manager)
 @login_required
 def message_update(request, pk):
-    message = get_object_or_404(Message, pk=pk)
+    message = visible_object(Message, request.user, pk)
 
     if request.method == 'POST':
         form = MessageForm(request.POST, instance=message)
@@ -224,10 +234,9 @@ def message_update(request, pk):
     return render(request, 'mailing/message_form.html', {'form': form})
 
 
-@user_passes_test(is_manager)
 @login_required
 def message_delete(request, pk):
-    message = get_object_or_404(Message, pk=pk)
+    message = visible_object(Message, request.user, pk)
 
     if request.method == 'POST':
         message.delete()
@@ -239,48 +248,46 @@ def message_delete(request, pk):
 # ============================
 # Mailing Views
 # ============================
-@cache_page(30)
-@user_passes_test(is_manager)
 @login_required
 def mailing_list(request):
-    mailings = Mailing.objects.all()
+    mailings = visible_objects(Mailing, request.user).select_related('message')
     return render(request, 'mailing/mailing_list.html', {'mailings': mailings})
 
 
-@user_passes_test(is_manager)
 @login_required
 def mailing_create(request):
     if request.method == 'POST':
-        form = MailingForm(request.POST)
+        form = MailingForm(request.POST, user=request.user)
         if form.is_valid():
-            form.save()
+            mailing = form.save(commit=False)
+            mailing.owner = request.user
+            mailing.save()
+            form.save_m2m()
             return redirect('mailing_list')
     else:
-        form = MailingForm()
+        form = MailingForm(user=request.user)
 
     return render(request, 'mailing/mailing_form.html', {'form': form})
 
 
-@user_passes_test(is_manager)
 @login_required
 def mailing_update(request, pk):
-    mailing = get_object_or_404(Mailing, pk=pk)
+    mailing = visible_object(Mailing, request.user, pk)
 
     if request.method == 'POST':
-        form = MailingForm(request.POST, instance=mailing)
+        form = MailingForm(request.POST, instance=mailing, user=request.user)
         if form.is_valid():
             form.save()
             return redirect('mailing_list')
     else:
-        form = MailingForm(instance=mailing)
+        form = MailingForm(instance=mailing, user=request.user)
 
     return render(request, 'mailing/mailing_form.html', {'form': form})
 
 
-@user_passes_test(is_manager)
 @login_required
 def mailing_delete(request, pk):
-    mailing = get_object_or_404(Mailing, pk=pk)
+    mailing = visible_object(Mailing, request.user, pk)
 
     if request.method == 'POST':
         mailing.delete()
@@ -289,10 +296,9 @@ def mailing_delete(request, pk):
     return render(request, 'mailing/mailing_confirm_delete.html', {'mailing': mailing})
 
 
-@user_passes_test(is_manager)
 @login_required
 def mailing_run(request, pk):
-    mailing = get_object_or_404(Mailing, pk=pk)
+    mailing = visible_object(Mailing, request.user, pk)
     now = timezone.now()
 
     # Принудительно делаем время осознанным, если оно наивное
@@ -309,10 +315,6 @@ def mailing_run(request, pk):
         return render(request, 'mailing/mailing_error.html', {
             'message': f'Отправка запрещена: текущее время ({now}) вне разрешённого диапазона ({start} – {end}).'
         })
-    mailing = get_object_or_404(Mailing, pk=pk)
-
-    now = timezone.now()
-
     recipients = mailing.recipients.all()
 
     attempts = []
@@ -355,11 +357,17 @@ def mailing_run(request, pk):
 from mailing.utils import get_active_mailings_count
 from django.utils import timezone
 
-@cache_page(60)
 def home(request):
-    total_mailings = Mailing.objects.count()
-    total_recipients = Recipient.objects.count()
-    active_mailings = get_active_mailings_count()
+    if request.user.is_authenticated:
+        total_mailings = visible_objects(Mailing, request.user).count()
+        total_recipients = visible_objects(Recipient, request.user).count()
+        active_mailings = visible_objects(Mailing, request.user).filter(
+            start_time__lte=timezone.now(), end_time__gte=timezone.now()
+        ).count()
+    else:
+        total_mailings = Mailing.objects.count()
+        total_recipients = Recipient.objects.count()
+        active_mailings = get_active_mailings_count()
 
     context = {
         'total_mailings': total_mailings,

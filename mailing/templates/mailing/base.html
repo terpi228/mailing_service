@@ -17,10 +17,10 @@
 
         {% if user.is_authenticated %}
 
-        {% if is_manager %}
         <a href="{% url 'recipient_list' %}" class="btn btn-dark">Клиенты</a>
         <a href="{% url 'message_list' %}" class="btn btn-dark">Сообщения</a>
         <a href="{% url 'mailing_list' %}" class="btn btn-dark">Рассылки</a>
+        {% if is_manager %}
         <a href="{% url 'stats' %}" class="btn btn-dark">Статистика</a>
         {% endif %}
 
