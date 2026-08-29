@@ -21,6 +21,7 @@
             <td>{{ m.subject }}</td>
             <td>{{ m.body|truncatewords:10 }}</td>
             <td>
+                <a href="{% url 'message_detail' m.pk %}" class="btn btn-info btn-sm">Открыть</a>
                 <a href="{% url 'message_update' m.id %}" class="btn btn-warning btn-sm">Редактировать</a>
                 <a href="{% url 'message_delete' m.id %}" class="btn btn-danger btn-sm">Удалить</a>
             </td>

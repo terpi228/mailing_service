@@ -1,13 +1,10 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
-from django import forms
+from django.conf import settings
 from django.core.mail import send_mail
 from django.utils import timezone
 from django.db.models import Count
 from django.core.exceptions import ValidationError, PermissionDenied
-from django.contrib.auth.models import User, Group
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.cache import cache_page
 from mailing.utils import get_active_mailings_count, get_attempt_stats
@@ -15,6 +12,7 @@ from mailing.utils import get_active_mailings_count, get_attempt_stats
 
 
 from .models import Recipient, Message, Mailing, Attempt
+from .forms import MailingForm, MessageForm, RecipientForm
 
 
 # ============================
@@ -35,105 +33,6 @@ def visible_objects(model, user):
 
 def visible_object(model, user, pk):
     return get_object_or_404(visible_objects(model, user), pk=pk)
-
-
-# ============================
-# Forms
-# ============================
-
-class RecipientForm(forms.ModelForm):
-    class Meta:
-        model = Recipient
-        fields = ['email', 'full_name', 'comment']
-
-
-class MessageForm(forms.ModelForm):
-    class Meta:
-        model = Message
-        fields = ['subject', 'body']
-
-
-class MailingForm(forms.ModelForm):
-    def __init__(self, *args, user=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['message'].queryset = visible_objects(Message, user)
-        self.fields['recipients'].queryset = visible_objects(Recipient, user)
-
-    class Meta:
-        model = Mailing
-        fields = ['start_time', 'end_time', 'message', 'recipients']
-        widgets = {
-            'start_time': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
-            'end_time': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
-        }
-
-    # def clean_start_time(self):
-    #     start = self.cleaned_data.get('start_time')
-    #     if start and timezone.is_naive(start):
-    #         start = timezone.make_aware(start, timezone.get_current_timezone())
-    #     return start
-
-    # def clean_end_time(self):
-    #     end = self.cleaned_data.get('end_time')
-    #     if end and timezone.is_naive(end):
-    #         end = timezone.make_aware(end, timezone.get_current_timezone())
-    #     return end
-
-    # def clean(self):
-    #     cleaned_data = super().clean()
-    #     start = cleaned_data.get('start_time')
-    #     end = cleaned_data.get('end_time')
-
-        # if start and start < timezone.now():
-        #     raise ValidationError("Время начала не может быть в прошлом.")
-        # if start and end and start >= end:
-        #     raise ValidationError("Время начала должно быть раньше времени окончания.")
-        # return cleaned_data
-
-
-class RegisterForm(UserCreationForm):
-    email = forms.EmailField(
-        required=True,
-        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email'})
-    )
-    username = forms.CharField(
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Имя пользователя'})
-    )
-    password1 = forms.CharField(
-        label='Пароль',
-        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Пароль'})
-    )
-    password2 = forms.CharField(
-        label='Подтверждение пароля',
-        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Подтверждение пароля'})
-    )
-
-    class Meta:
-        model = User
-        fields = ('username', 'email', 'password1', 'password2')
-
-    def clean_email(self):
-        email = self.cleaned_data.get('email')
-        if User.objects.filter(email=email).exists():
-            raise forms.ValidationError("Пользователь с таким email уже существует.")
-        return email
-
-    def save(self, commit=True):
-        user = super().save(commit=False)
-        user.email = self.cleaned_data['email']
-        if commit:
-            user.save()
-        return user
-
-
-class LoginForm(forms.Form):
-    """Форма для входа пользователя."""
-    username = forms.CharField(
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Имя пользователя'})
-    )
-    password = forms.CharField(
-        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': 'Пароль'})
-    )
 
 
 # ============================
@@ -205,6 +104,12 @@ def message_list(request):
 
 
 @login_required
+def message_detail(request, pk):
+    message = visible_object(Message, request.user, pk)
+    return render(request, 'mailing/message_detail.html', {'message': message})
+
+
+@login_required
 def message_create(request):
     if request.method == 'POST':
         form = MessageForm(request.POST)
@@ -252,6 +157,12 @@ def message_delete(request, pk):
 def mailing_list(request):
     mailings = visible_objects(Mailing, request.user).select_related('message')
     return render(request, 'mailing/mailing_list.html', {'mailings': mailings})
+
+
+@login_required
+def mailing_detail(request, pk):
+    mailing = visible_object(Mailing, request.user, pk)
+    return render(request, 'mailing/mailing_detail.html', {'mailing': mailing})
 
 
 @login_required
@@ -324,7 +235,7 @@ def mailing_run(request, pk):
             send_mail(
                 subject=mailing.message.subject,
                 message=mailing.message.body,
-                from_email='admin@example.com',
+                from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[r.email],
                 fail_silently=False,
             )
@@ -379,50 +290,6 @@ def home(request):
 
 
 
-
-
-# ============================
-# Authentication Views
-# ============================
-
-def register(request):
-    """Регистрация нового пользователя и добавление в группу 'users'."""
-    if request.method == 'POST':
-        form = RegisterForm(request.POST)
-        if form.is_valid():
-            user = form.save()
-            # Добавляем нового пользователя в группу "users"
-            users_group, created = Group.objects.get_or_create(name='users')
-            users_group.user_set.add(user)
-            login(request, user)
-            return redirect('home')
-    else:
-        form = RegisterForm()
-    return render(request, 'mailing/register.html', {'form': form})
-
-
-def login_view(request):
-    """Страница входа пользователя."""
-    if request.method == 'POST':
-        form = LoginForm(request.POST)
-        if form.is_valid():
-            username = form.cleaned_data.get('username')
-            password = form.cleaned_data.get('password')
-            user = authenticate(request, username=username, password=password)
-            if user is not None:
-                login(request, user)
-                return redirect('home')
-            else:
-                form.add_error(None, "Неверное имя пользователя или пароль.")
-    else:
-        form = LoginForm()
-    return render(request, 'mailing/login.html', {'form': form})
-
-
-def logout_view(request):
-    """Выход пользователя."""
-    logout(request)
-    return redirect('home')
 
 
 from django.db.models import Count, Q

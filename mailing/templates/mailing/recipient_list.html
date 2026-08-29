@@ -23,6 +23,7 @@
             <td>{{ r.full_name }}</td>
             <td>{{ r.comment }}</td>
             <td>
+                <a href="{% url 'recipient_detail' r.pk %}" class="btn btn-info btn-sm">Открыть</a>
                 <a href="{% url 'recipient_update' r.id %}" class="btn btn-warning btn-sm">Редактировать</a>
                 <a href="{% url 'recipient_delete' r.id %}" class="btn btn-danger btn-sm">Удалить</a>
             </td>

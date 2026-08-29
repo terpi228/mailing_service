@@ -38,7 +38,7 @@ class Mailing(models.Model):
     recipients = models.ManyToManyField(Recipient)
 
     @property
-    def status(self):
+    def current_status(self):
         now = timezone.now()
         if now < self.start_time:
             return 'Создано'

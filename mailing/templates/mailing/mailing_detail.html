@@ -1,0 +1,27 @@
+{% extends 'mailing/base.html' %}
+
+{% block title %}Рассылка #{{ mailing.pk }}{% endblock %}
+
+{% block content %}
+<h1>Рассылка #{{ mailing.pk }}</h1>
+<dl class="row">
+    <dt class="col-sm-3">Статус</dt>
+    <dd class="col-sm-9">{{ mailing.current_status }}</dd>
+    <dt class="col-sm-3">Начало</dt>
+    <dd class="col-sm-9">{{ mailing.start_time }}</dd>
+    <dt class="col-sm-3">Окончание</dt>
+    <dd class="col-sm-9">{{ mailing.end_time }}</dd>
+    <dt class="col-sm-3">Сообщение</dt>
+    <dd class="col-sm-9"><a href="{% url 'message_detail' mailing.message.pk %}">{{ mailing.message.subject }}</a></dd>
+    <dt class="col-sm-3">Получатели</dt>
+    <dd class="col-sm-9">
+        {% for recipient in mailing.recipients.all %}
+            <a href="{% url 'recipient_detail' recipient.pk %}">{{ recipient.email }}</a>{% if not forloop.last %}, {% endif %}
+        {% empty %}
+            -
+        {% endfor %}
+    </dd>
+</dl>
+<a href="{% url 'mailing_update' mailing.pk %}" class="btn btn-warning">Редактировать</a>
+<a href="{% url 'mailing_list' %}" class="btn btn-secondary">К списку</a>
+{% endblock %}

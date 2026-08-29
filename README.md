@@ -55,6 +55,7 @@ POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 EMAIL_HOST_USER=ваш-email@example.com
 EMAIL_HOST_PASSWORD=ваш-пароль-приложения
+DEFAULT_FROM_EMAIL=ваш-email@example.com
 ```
 
 ### 5. Настройка почты (SMTP)
@@ -154,11 +155,15 @@ Beat будет каждую минуту проверять и отправля
 
 - `mailing/` – основное приложение
   - `models.py` – Recipient, Message, Mailing, Attempt
-  - `views.py` – все представления с разграничением доступа
+  - `views.py` – представления рассылок с разграничением доступа
   - `forms.py` – формы с валидацией времени
   - `tasks.py` – Celery-задачи (отправка и проверка рассылок)
   - `utils.py` – функции кеширования статистики
   - `templates/mailing/` – все HTML-шаблоны
+- `users/` – регистрация, вход, выход и восстановление пароля
+  - `forms.py` – формы регистрации и входа
+  - `views.py` – пользовательские представления
+  - `urls.py` – маршруты пользовательского функционала
 - `mailing_service/` – настройки проекта
   - `settings.py` – конфигурация (база, кеш, Celery, почта)
   - `celery.py` – инициализация Celery

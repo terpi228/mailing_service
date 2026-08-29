@@ -34,6 +34,7 @@
             </td>
 
             <td>
+                <a href="{% url 'mailing_detail' m.pk %}" class="btn btn-info btn-sm">Открыть</a>
                 <a href="{% url 'mailing_update' m.id %}" class="btn btn-warning btn-sm">Редактировать</a>
                 <a href="{% url 'mailing_delete' m.id %}" class="btn btn-danger btn-sm">Удалить</a>
                 {% if is_manager %}
