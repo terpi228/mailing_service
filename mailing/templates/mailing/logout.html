@@ -1,0 +1,20 @@
+{% extends 'mailing/base.html' %}
+
+{% block title %}Выход - Mailing Service{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-6">
+        <div class="alert alert-success" role="alert">
+            <div class="text-center">
+                <h4 class="alert-heading mb-3">✓ Вы вышли из системы</h4>
+                <p class="mb-0">Спасибо за использование Mailing Service!</p>
+            </div>
+        </div>
+        <div class="text-center mt-4">
+            <a href="{% url 'login' %}" class="btn btn-primary me-2">Войти снова</a>
+            <a href="{% url 'home' %}" class="btn btn-secondary">На главную</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

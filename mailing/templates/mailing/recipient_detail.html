@@ -1,0 +1,15 @@
+{% extends 'mailing/base.html' %}
+
+{% block title %}Клиент {{ recipient.full_name }}{% endblock %}
+
+{% block content %}
+<h1>{{ recipient.full_name }}</h1>
+<dl class="row">
+    <dt class="col-sm-3">Email</dt>
+    <dd class="col-sm-9">{{ recipient.email }}</dd>
+    <dt class="col-sm-3">Комментарий</dt>
+    <dd class="col-sm-9">{{ recipient.comment|default:'-' }}</dd>
+</dl>
+<a href="{% url 'recipient_update' recipient.pk %}" class="btn btn-warning">Редактировать</a>
+<a href="{% url 'recipient_list' %}" class="btn btn-secondary">К списку</a>
+{% endblock %}
